@@ -801,6 +801,7 @@
 }
 
 .workout-info small {
+  grid-column: 2 / 4;
   overflow: hidden;
   color: #838b80;
   font-size: 9px;
@@ -809,11 +810,27 @@
 }
 
 .timer-clock {
+  min-width: 82px;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
   color: #2f392e;
   font-size: 25px;
   font-variant-numeric: tabular-nums;
   font-weight: 750;
   letter-spacing: -1px;
+}
+
+.timer-clock small {
+  color: #899187;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: .2px;
+}
+
+.timer-clock strong {
+  font-size: inherit;
+  line-height: 1;
 }
 
 .timer-actions {
@@ -1110,17 +1127,20 @@
   }
 
   .workout-info small {
-    display: none;
+    grid-column: 2;
+    display: block;
+    font-size: 8px;
   }
 
   .timer-clock {
+    min-width: 56px;
     font-size: 20px;
   }
 
   .timer-control {
     min-height: 31px;
-    padding: 0 8px;
-    font-size: 9px;
+    padding: 0 6px;
+    font-size: 8px;
   }
 
   .stop-button {

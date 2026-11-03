@@ -5,8 +5,10 @@ import { FixedSizeList } from 'react-window';
 import type { ListChildComponentProps } from 'react-window';
 import { EXERCISES, GROUPS } from './data/exercises';
 import { ExerciseRow } from './features/exercises/ExerciseRow';
+import { useRoutineStore } from './features/routines/useRoutineStore';
+import { useSavedStore } from './features/saved/useSavedStore';
+import { useSessionStore } from './features/session/useSessionStore';
 import { useDebounce } from './hooks/useDebounce';
-import { useWorkoutStore } from './store/workoutStore';
 import type { Exercise, MuscleGroup, Routine } from './types';
 import { formatDuration } from './utils/format';
 import './App.css';
@@ -15,11 +17,11 @@ type SortOption = 'default' | 'name' | 'duration';
 
 interface ExerciseRowData {
   exercises: Exercise[];
-  onStart: (exercise: Exercise) => void;
+  onStart: (exercise: Exercise, index: number) => void;
   onToggleSaved: (id: string) => void;
   onQueue: (id: string) => void;
   savedIds: string[];
-  queuedIds: string[];
+  queuedIds: ReadonlySet<string>;
 }
 
 function DebouncedSearch({ onKeywordChange }: { onKeywordChange: (value: string) => void }) {
@@ -54,7 +56,7 @@ function VirtualExerciseRow({ index, style, data }: ListChildComponentProps<Exer
         index={index}
         exercise={exercise}
         isSaved={data.savedIds.includes(exercise.id)}
-        isQueued={data.queuedIds.includes(exercise.id)}
+        isQueued={data.queuedIds.has(exercise.id)}
         onStart={data.onStart}
         onToggleSaved={data.onToggleSaved}
         onQueue={data.onQueue}
@@ -75,8 +77,8 @@ function ExerciseList({
   exercises: Exercise[];
   height?: number;
   savedIds: string[];
-  queuedIds: string[];
-  onStart: (exercise: Exercise) => void;
+  queuedIds: ReadonlySet<string>;
+  onStart: (exercise: Exercise, index: number) => void;
   onToggleSaved: (id: string) => void;
   onQueue: (id: string) => void;
 }) {
@@ -106,11 +108,12 @@ function LibraryPage() {
   const [keyword, setKeyword] = useState('');
   const [group, setGroup] = useState<MuscleGroup | 'Tất cả'>('Tất cả');
   const [sort, setSort] = useState<SortOption>('default');
-  const savedIds = useWorkoutStore((state) => state.savedIds);
-  const queuedIds = useWorkoutStore((state) => state.queueIds);
-  const beginExercise = useWorkoutStore((state) => state.beginExercise);
-  const toggleSaved = useWorkoutStore((state) => state.toggleSaved);
-  const queueExercise = useWorkoutStore((state) => state.queueExercise);
+  const savedIds = useSavedStore((state) => state.ids);
+  const toggleSaved = useSavedStore((state) => state.toggle);
+  const queue = useSessionStore((state) => state.queue);
+  const startSession = useSessionStore((state) => state.startSession);
+  const addToSession = useSessionStore((state) => state.addToSession);
+  const queuedIds = useMemo(() => new Set(queue.map((exercise) => exercise.id)), [queue]);
   const handleKeywordChange = useCallback((value: string) => setKeyword(value), []);
 
   const visibleExercises = useMemo(() => {
@@ -132,9 +135,12 @@ function LibraryPage() {
     return filtered;
   }, [keyword, group, sort]);
 
-  const onStart = useCallback((exercise: Exercise) => beginExercise(exercise.id), [beginExercise]);
+  const onStart = useCallback((_exercise: Exercise, index: number) => startSession(visibleExercises, index), [startSession, visibleExercises]);
   const onToggleSaved = useCallback((id: string) => toggleSaved(id), [toggleSaved]);
-  const onQueue = useCallback((id: string) => queueExercise(id), [queueExercise]);
+  const onQueue = useCallback((id: string) => {
+    const exercise = EXERCISES.find((item) => item.id === id);
+    if (exercise) addToSession(exercise);
+  }, [addToSession]);
 
   return (
     <section className="page library-page">
@@ -183,31 +189,48 @@ function LibraryPage() {
 }
 
 function SavedPage() {
-  const savedIds = useWorkoutStore((state) => state.savedIds);
-  const queuedIds = useWorkoutStore((state) => state.queueIds);
-  const beginExercise = useWorkoutStore((state) => state.beginExercise);
-  const toggleSaved = useWorkoutStore((state) => state.toggleSaved);
-  const queueExercise = useWorkoutStore((state) => state.queueExercise);
+  const savedIds = useSavedStore((state) => state.ids);
+  const toggleSaved = useSavedStore((state) => state.toggle);
+  const queue = useSessionStore((state) => state.queue);
+  const startSession = useSessionStore((state) => state.startSession);
+  const addToSession = useSessionStore((state) => state.addToSession);
   const exercises = useMemo(
     () => savedIds.map((id) => EXERCISES.find((exercise) => exercise.id === id)).filter((exercise): exercise is Exercise => exercise !== undefined),
     [savedIds],
   );
-  const onStart = useCallback((exercise: Exercise) => beginExercise(exercise.id), [beginExercise]);
+  const onStart = useCallback((_exercise: Exercise, index: number) => startSession(exercises, index), [startSession, exercises]);
   const onToggleSaved = useCallback((id: string) => toggleSaved(id), [toggleSaved]);
-  const onQueue = useCallback((id: string) => queueExercise(id), [queueExercise]);
+  const onQueue = useCallback((id: string) => {
+    const exercise = EXERCISES.find((item) => item.id === id);
+    if (exercise) addToSession(exercise);
+  }, [addToSession]);
+  const queuedIds = useMemo(() => new Set(queue.map((exercise) => exercise.id)), [queue]);
 
   return (
     <section className="page">
       <div className="page-heading">
         <div><p className="eyebrow">BỘ SƯU TẬP CỦA BẠN</p><h1>Bài tập đã lưu</h1><p className="subheading">Những động tác bạn muốn quay lại.</p></div>
-        <span className="count-pill">{exercises.length} bài tập</span>
+        {exercises.length > 0 && <button className="button button-primary" type="button" onClick={() => startSession(exercises, 0)}>▶ Tập tất cả</button>}
       </div>
       {exercises.length === 0 ? (
-        <div className="empty-card"><span className="empty-icon">☆</span><h2>Chưa có bài tập nào</h2><p>Lưu bài tập yêu thích từ kho để tìm lại nhanh hơn.</p><NavLink className="button button-primary" to="/">Khám phá bài tập</NavLink></div>
+        <div className="empty-card"><span className="empty-icon">☆</span><h2>Bạn chưa lưu bài tập nào.</h2><NavLink className="button button-primary" to="/">Khám phá bài tập</NavLink></div>
       ) : (
         <div className="saved-list">
           <div className="list-heading"><span>BÀI TẬP</span><span>HUẤN LUYỆN VIÊN</span><span>NHÓM CƠ</span><span>THỜI LƯỢNG</span><span>THAO TÁC</span></div>
-          <ExerciseList exercises={exercises} height={560} savedIds={savedIds} queuedIds={queuedIds} onStart={onStart} onToggleSaved={onToggleSaved} onQueue={onQueue} />
+          <div className="saved-exercises">
+            {exercises.map((exercise, index) => (
+              <ExerciseRow
+                key={exercise.id}
+                index={index}
+                exercise={exercise}
+                isSaved
+                isQueued={queuedIds.has(exercise.id)}
+                onStart={onStart}
+                onToggleSaved={onToggleSaved}
+                onQueue={onQueue}
+              />
+            ))}
+          </div>
         </div>
       )}
     </section>
@@ -227,8 +250,8 @@ function RoutineCard({ routine }: { routine: Routine }) {
 }
 
 function RoutinesPage() {
-  const routines = useWorkoutStore((state) => state.routines);
-  const createRoutine = useWorkoutStore((state) => state.createRoutine);
+  const routines = useRoutineStore((state) => state.routines);
+  const createRoutine = useRoutineStore((state) => state.createRoutine);
   const [routineName, setRoutineName] = useState('');
   const handleCreateRoutine = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -261,12 +284,12 @@ function RoutinesPage() {
 function RoutineDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const routine = useWorkoutStore((state) => state.routines.find((item) => item.id === id));
-  const savedIds = useWorkoutStore((state) => state.savedIds);
-  const removeRoutine = useWorkoutStore((state) => state.removeRoutine);
-  const addExerciseToRoutine = useWorkoutStore((state) => state.addExerciseToRoutine);
-  const removeExerciseFromRoutine = useWorkoutStore((state) => state.removeExerciseFromRoutine);
-  const startRoutine = useWorkoutStore((state) => state.startRoutine);
+  const routine = useRoutineStore((state) => state.routines.find((item) => item.id === id));
+  const savedIds = useSavedStore((state) => state.ids);
+  const removeRoutine = useRoutineStore((state) => state.removeRoutine);
+  const addExerciseToRoutine = useRoutineStore((state) => state.addExerciseToRoutine);
+  const removeExerciseFromRoutine = useRoutineStore((state) => state.removeExerciseFromRoutine);
+  const startSession = useSessionStore((state) => state.startSession);
   const [exerciseId, setExerciseId] = useState('');
 
   if (!routine) {
@@ -292,7 +315,7 @@ function RoutineDetailPage() {
       <NavLink className="back-link" to="/routines">← Tất cả giáo án</NavLink>
       <div className="detail-heading">
         <div><p className="eyebrow">GIÁO ÁN</p><h1>{routine.name}</h1><p className="subheading">{exercises.length} bài tập <span>·</span> {formatDuration(totalTime)} tổng thời gian</p></div>
-        <button className="button button-primary" type="button" disabled={exercises.length === 0} onClick={() => startRoutine(routine.exerciseIds)}>▶ Bắt đầu giáo án</button>
+        <button className="button button-primary" type="button" disabled={exercises.length === 0} onClick={() => startSession(exercises, 0)}>▶ Bắt đầu giáo án</button>
       </div>
       <form className="add-exercise-form" onSubmit={addExercise}>
         <label htmlFor="routine-exercise">Thêm bài tập từ bộ sưu tập</label>
@@ -327,42 +350,56 @@ function RoutineDetailPage() {
   );
 }
 
-function WorkoutTimerBar() {
-  const activeExerciseId = useWorkoutStore((state) => state.activeExerciseId);
-  const remainingSeconds = useWorkoutStore((state) => state.remainingSeconds);
-  const isRunning = useWorkoutStore((state) => state.isRunning);
-  const queueIds = useWorkoutStore((state) => state.queueIds);
-  const pauseTimer = useWorkoutStore((state) => state.pauseTimer);
-  const resumeTimer = useWorkoutStore((state) => state.resumeTimer);
-  const stopTimer = useWorkoutStore((state) => state.stopTimer);
-  const tickTimer = useWorkoutStore((state) => state.tickTimer);
-  const activeExercise = EXERCISES.find((exercise) => exercise.id === activeExerciseId);
-  const duration = activeExercise?.duration ?? 1;
-  const progress = activeExercise ? Math.max(0, Math.min(100, ((duration - remainingSeconds) / duration) * 100)) : 0;
+function CountdownBar({ exercise }: { exercise: Exercise | undefined }) {
+  const elapsed = useSessionStore((state) => state.elapsed);
+  const remaining = exercise ? Math.max(0, exercise.duration - elapsed) : 0;
+  const progress = exercise ? Math.min(100, (elapsed / exercise.duration) * 100) : 0;
 
+  return (
+    <>
+      <div className="workout-progress" style={{ width: `${progress}%` }} />
+      <div className="timer-clock" aria-live="polite">
+        <small>Còn lại:</small>
+        <strong>{formatDuration(remaining)}</strong>
+      </div>
+    </>
+  );
+}
+
+function SessionBar() {
+  const queue = useSessionStore((state) => state.queue);
+  const currentIndex = useSessionStore((state) => state.currentIndex);
+  const isRunning = useSessionStore((state) => state.isRunning);
+  const toggleRun = useSessionStore((state) => state.toggleRun);
+  const next = useSessionStore((state) => state.next);
+  const prev = useSessionStore((state) => state.prev);
+  const tick = useSessionStore((state) => state.tick);
+  const currentExercise = queue[currentIndex];
   useEffect(() => {
     if (!isRunning) return undefined;
-    const timerId = window.setInterval(tickTimer, 1000);
+    const timerId = window.setInterval(tick, 1000);
     return () => window.clearInterval(timerId);
-  }, [isRunning, tickTimer]);
-
-  if (!activeExercise) return null;
+  }, [isRunning, tick]);
 
   return (
     <aside className="workout-bar" aria-label="Đồng hồ buổi tập">
-      <div className="workout-progress" style={{ width: `${progress}%` }} />
-      <div className="workout-info"><span className={`timer-pulse ${isRunning ? 'is-running' : ''}`} /><span className="workout-label">BUỔI TẬP ĐANG DIỄN RA</span><strong>{activeExercise.name}</strong><small>{activeExercise.group} <span>·</span> {queueIds.length ? `${queueIds.length} bài tiếp theo` : 'Bài tập hiện tại'}</small></div>
-      <div className="timer-clock" aria-live="polite">{formatDuration(remainingSeconds)}</div>
+      <div className="workout-info">
+        <span className={`timer-pulse ${isRunning ? 'is-running' : ''}`} />
+        <span className="workout-label">{currentExercise ? `Đang tập: ${currentExercise.name} – HLV ${currentExercise.trainer}` : 'Chưa bắt đầu buổi tập'}</span>
+        <small>Buổi tập: {queue.length} bài</small>
+      </div>
+      <CountdownBar exercise={currentExercise} />
       <div className="timer-actions">
-        <button className="button button-secondary timer-control" type="button" onClick={isRunning ? pauseTimer : resumeTimer}>{isRunning ? 'Ⅱ Tạm dừng' : '▶ Tiếp tục'}</button>
-        <button className="icon-button stop-button" type="button" aria-label="Kết thúc buổi tập" onClick={stopTimer}>×</button>
+        <button className="button button-secondary timer-control" type="button" disabled={currentIndex < 0} onClick={prev}>← Trước</button>
+        <button className="button button-primary timer-control" type="button" disabled={queue.length === 0} onClick={toggleRun}>{isRunning ? 'Ⅱ Tạm dừng' : '▶ Bắt đầu'}</button>
+        <button className="button button-secondary timer-control" type="button" disabled={currentIndex < 0} onClick={next}>Sau →</button>
       </div>
     </aside>
   );
 }
 
 function AppLayout() {
-  const savedCount = useWorkoutStore((state) => state.savedIds.length);
+  const savedCount = useSavedStore((state) => state.ids.length);
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -386,7 +423,7 @@ function AppLayout() {
           <Route path="*" element={<section className="page"><div className="empty-card"><h2>Không tìm thấy trang</h2><NavLink className="button button-primary" to="/">Về kho bài tập</NavLink></div></section>} />
         </Routes>
       </main>
-      <WorkoutTimerBar />
+      <SessionBar />
       <footer className="site-footer"><span>2026 PULSE TRAINING</span><span>NHỊP ĐỘ CỦA BẠN, MỤC TIÊU CỦA BẠN</span></footer>
     </div>
   );

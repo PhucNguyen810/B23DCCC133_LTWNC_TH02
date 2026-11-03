@@ -33,10 +33,10 @@ describe('ExerciseRow', () => {
     expect(screen.getByText('Minh Khang')).toBeInTheDocument();
     expect(screen.getByText('0:30')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '▶ Bắt đầu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu Đẩy tạ đơn 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu bài tập' }));
     fireEvent.click(screen.getByRole('button', { name: 'Thêm Đẩy tạ đơn 1 vào buổi tập' }));
 
-    expect(onStart).toHaveBeenCalledWith(exercise);
+    expect(onStart).toHaveBeenCalledWith(exercise, 0);
     expect(onToggleSaved).toHaveBeenCalledWith('e1');
     expect(onQueue).toHaveBeenCalledWith('e1');
   });
@@ -54,7 +54,7 @@ describe('ExerciseRow', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Bỏ lưu Đẩy tạ đơn 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Bỏ lưu bài tập' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Đẩy tạ đơn 1 đã ở trong buổi tập' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('02')).toBeInTheDocument();
   });

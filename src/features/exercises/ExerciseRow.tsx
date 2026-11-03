@@ -7,7 +7,7 @@ interface ExerciseRowProps {
   exercise: Exercise;
   isSaved: boolean;
   isQueued: boolean;
-  onStart: (exercise: Exercise) => void;
+  onStart: (exercise: Exercise, index: number) => void;
   onToggleSaved: (id: string) => void;
   onQueue: (id: string) => void;
 }
@@ -21,8 +21,8 @@ function ExerciseRowComponent({ index, exercise, isSaved, isQueued, onStart, onT
       <span className="group-tag">{exercise.group}</span>
       <span className="exercise-duration">{formatDuration(exercise.duration)}</span>
       <span className="row-actions">
-        <button className="button button-start" type="button" onClick={() => onStart(exercise)}>▶ Bắt đầu</button>
-        <button className={`icon-button save-button${isSaved ? ' is-saved' : ''}`} type="button" aria-label={isSaved ? `Bỏ lưu ${exercise.name}` : `Lưu ${exercise.name}`} aria-pressed={isSaved} onClick={() => onToggleSaved(exercise.id)}>{isSaved ? '★' : '☆'}</button>
+        <button className="button button-start" type="button" onClick={() => onStart(exercise, index)}>▶ Bắt đầu</button>
+        <button className={`icon-button save-button${isSaved ? ' is-saved' : ''}`} type="button" aria-label={isSaved ? 'Bỏ lưu bài tập' : 'Lưu bài tập'} aria-pressed={isSaved} onClick={() => onToggleSaved(exercise.id)}>{isSaved ? '★' : '☆'}</button>
         <button className={`icon-button queue-button${isQueued ? ' is-queued' : ''}`} type="button" aria-label={isQueued ? `${exercise.name} đã ở trong buổi tập` : `Thêm ${exercise.name} vào buổi tập`} aria-pressed={isQueued} onClick={() => onQueue(exercise.id)}>{isQueued ? '✓' : '+'}</button>
       </span>
     </div>
