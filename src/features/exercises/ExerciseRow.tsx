@@ -10,9 +10,21 @@ interface ExerciseRowProps {
   onStart: (exercise: Exercise, index: number) => void;
   onToggleSaved: (id: string) => void;
   onQueue: (id: string) => void;
+  onAddToRoutine?: (exerciseId: string) => void;
+  canAddToRoutine?: boolean;
 }
 
-function ExerciseRowComponent({ index, exercise, isSaved, isQueued, onStart, onToggleSaved, onQueue }: ExerciseRowProps) {
+function ExerciseRowComponent({
+  index,
+  exercise,
+  isSaved,
+  isQueued,
+  onStart,
+  onToggleSaved,
+  onQueue,
+  onAddToRoutine,
+  canAddToRoutine = false,
+}: ExerciseRowProps) {
   return (
     <div className="exercise-row">
       <span className="exercise-number">{String(index + 1).padStart(2, '0')}</span>
@@ -24,6 +36,17 @@ function ExerciseRowComponent({ index, exercise, isSaved, isQueued, onStart, onT
         <button className="button button-start" type="button" onClick={() => onStart(exercise, index)}>▶ Bắt đầu</button>
         <button className={`icon-button save-button${isSaved ? ' is-saved' : ''}`} type="button" aria-label={isSaved ? 'Bỏ lưu bài tập' : 'Lưu bài tập'} aria-pressed={isSaved} onClick={() => onToggleSaved(exercise.id)}>{isSaved ? '★' : '☆'}</button>
         <button className={`icon-button queue-button${isQueued ? ' is-queued' : ''}`} type="button" aria-label={isQueued ? `${exercise.name} đã ở trong buổi tập` : `Thêm ${exercise.name} vào buổi tập`} aria-pressed={isQueued} onClick={() => onQueue(exercise.id)}>{isQueued ? '✓' : '+'}</button>
+        {onAddToRoutine && (
+          <button
+            className="button button-routine"
+            type="button"
+            disabled={!canAddToRoutine}
+            aria-label={`Thêm ${exercise.name} vào giáo án`}
+            onClick={() => onAddToRoutine(exercise.id)}
+          >
+            + Giáo án
+          </button>
+        )}
       </span>
     </div>
   );

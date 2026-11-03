@@ -1,19 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { BrowserRouter, NavLink, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import { FixedSizeList } from 'react-window';
 import type { ListChildComponentProps } from 'react-window';
 import { EXERCISES, GROUPS } from './data/exercises';
 import { ExerciseRow } from './features/exercises/ExerciseRow';
-import { useRoutineStore } from './features/routines/useRoutineStore';
+import { RoutineProvider } from './features/routines/RoutineContext';
+import { useRoutineDispatch, useRoutines } from './features/routines/RoutineContexts';
 import { useSavedStore } from './features/saved/useSavedStore';
 import { useSessionStore } from './features/session/useSessionStore';
+import { ThemeProvider } from './features/theme/ThemeContext';
+import { useTheme } from './features/theme/ThemeContexts';
 import { useDebounce } from './hooks/useDebounce';
-import type { Exercise, MuscleGroup, Routine } from './types';
+import type { Exercise, MuscleGroup } from './types';
 import { formatDuration } from './utils/format';
 import './App.css';
 
 type SortOption = 'default' | 'name' | 'duration';
+
+const SavedPage = lazy(() => import('./features/saved/SavedPage'));
+const RoutinesPage = lazy(() => import('./features/routines/RoutinesPage'));
+const RoutineDetailPage = lazy(() => import('./features/routines/RoutineDetailPage'));
 
 interface ExerciseRowData {
   exercises: Exercise[];
@@ -22,6 +28,8 @@ interface ExerciseRowData {
   onQueue: (id: string) => void;
   savedIds: string[];
   queuedIds: ReadonlySet<string>;
+  canAddToRoutine: boolean;
+  onAddToRoutine: (exerciseId: string) => void;
 }
 
 function DebouncedSearch({ onKeywordChange }: { onKeywordChange: (value: string) => void }) {
@@ -60,6 +68,8 @@ function VirtualExerciseRow({ index, style, data }: ListChildComponentProps<Exer
         onStart={data.onStart}
         onToggleSaved={data.onToggleSaved}
         onQueue={data.onQueue}
+        onAddToRoutine={data.onAddToRoutine}
+        canAddToRoutine={data.canAddToRoutine}
       />
     </div>
   );
@@ -73,6 +83,8 @@ function ExerciseList({
   onStart,
   onToggleSaved,
   onQueue,
+  onAddToRoutine,
+  canAddToRoutine,
 }: {
   exercises: Exercise[];
   height?: number;
@@ -81,10 +93,12 @@ function ExerciseList({
   onStart: (exercise: Exercise, index: number) => void;
   onToggleSaved: (id: string) => void;
   onQueue: (id: string) => void;
+  onAddToRoutine: (exerciseId: string) => void;
+  canAddToRoutine: boolean;
 }) {
   const rowData = useMemo(
-    () => ({ exercises, onStart, onToggleSaved, onQueue, savedIds, queuedIds }),
-    [exercises, onStart, onToggleSaved, onQueue, savedIds, queuedIds],
+    () => ({ exercises, onStart, onToggleSaved, onQueue, savedIds, queuedIds, canAddToRoutine, onAddToRoutine }),
+    [exercises, onStart, onToggleSaved, onQueue, savedIds, queuedIds, canAddToRoutine, onAddToRoutine],
   );
   if (exercises.length === 0) {
     return <div className="empty-state">Không tìm thấy bài tập nào</div>;
@@ -108,6 +122,9 @@ function LibraryPage() {
   const [keyword, setKeyword] = useState('');
   const [group, setGroup] = useState<MuscleGroup | 'Tất cả'>('Tất cả');
   const [sort, setSort] = useState<SortOption>('default');
+  const [selectedRoutine, setSelectedRoutine] = useState('');
+  const routines = useRoutines();
+  const dispatch = useRoutineDispatch();
   const savedIds = useSavedStore((state) => state.ids);
   const toggleSaved = useSavedStore((state) => state.toggle);
   const queue = useSessionStore((state) => state.queue);
@@ -141,6 +158,11 @@ function LibraryPage() {
     const exercise = EXERCISES.find((item) => item.id === id);
     if (exercise) addToSession(exercise);
   }, [addToSession]);
+  const activeRoutineId = routines.some((routine) => routine.id === selectedRoutine) ? selectedRoutine : '';
+  const onAddToRoutine = useCallback((exerciseId: string) => {
+    if (!activeRoutineId) return;
+    dispatch({ type: 'addExercise', routineId: activeRoutineId, exerciseId });
+  }, [activeRoutineId, dispatch]);
 
   return (
     <section className="page library-page">
@@ -169,6 +191,13 @@ function LibraryPage() {
             <option value="duration">Thời lượng tăng dần</option>
           </select>
         </label>
+        <label className="routine-selector">
+          <span>Giáo án đang chọn</span>
+          <select value={activeRoutineId} onChange={(event) => setSelectedRoutine(event.target.value)}>
+            <option value="">Chọn giáo án</option>
+            {routines.map((routine) => <option key={routine.id} value={routine.id}>{routine.name}</option>)}
+          </select>
+        </label>
       </div>
       <div className="results-line" aria-live="polite">
         Tìm thấy <strong>{visibleExercises.length}</strong> bài tập
@@ -183,169 +212,9 @@ function LibraryPage() {
         onStart={onStart}
         onToggleSaved={onToggleSaved}
         onQueue={onQueue}
+        onAddToRoutine={onAddToRoutine}
+        canAddToRoutine={Boolean(activeRoutineId)}
       />
-    </section>
-  );
-}
-
-function SavedPage() {
-  const savedIds = useSavedStore((state) => state.ids);
-  const toggleSaved = useSavedStore((state) => state.toggle);
-  const queue = useSessionStore((state) => state.queue);
-  const startSession = useSessionStore((state) => state.startSession);
-  const addToSession = useSessionStore((state) => state.addToSession);
-  const exercises = useMemo(
-    () => savedIds.map((id) => EXERCISES.find((exercise) => exercise.id === id)).filter((exercise): exercise is Exercise => exercise !== undefined),
-    [savedIds],
-  );
-  const onStart = useCallback((_exercise: Exercise, index: number) => startSession(exercises, index), [startSession, exercises]);
-  const onToggleSaved = useCallback((id: string) => toggleSaved(id), [toggleSaved]);
-  const onQueue = useCallback((id: string) => {
-    const exercise = EXERCISES.find((item) => item.id === id);
-    if (exercise) addToSession(exercise);
-  }, [addToSession]);
-  const queuedIds = useMemo(() => new Set(queue.map((exercise) => exercise.id)), [queue]);
-
-  return (
-    <section className="page">
-      <div className="page-heading">
-        <div><p className="eyebrow">BỘ SƯU TẬP CỦA BẠN</p><h1>Bài tập đã lưu</h1><p className="subheading">Những động tác bạn muốn quay lại.</p></div>
-        {exercises.length > 0 && <button className="button button-primary" type="button" onClick={() => startSession(exercises, 0)}>▶ Tập tất cả</button>}
-      </div>
-      {exercises.length === 0 ? (
-        <div className="empty-card"><span className="empty-icon">☆</span><h2>Bạn chưa lưu bài tập nào.</h2><NavLink className="button button-primary" to="/">Khám phá bài tập</NavLink></div>
-      ) : (
-        <div className="saved-list">
-          <div className="list-heading"><span>BÀI TẬP</span><span>HUẤN LUYỆN VIÊN</span><span>NHÓM CƠ</span><span>THỜI LƯỢNG</span><span>THAO TÁC</span></div>
-          <div className="saved-exercises">
-            {exercises.map((exercise, index) => (
-              <ExerciseRow
-                key={exercise.id}
-                index={index}
-                exercise={exercise}
-                isSaved
-                isQueued={queuedIds.has(exercise.id)}
-                onStart={onStart}
-                onToggleSaved={onToggleSaved}
-                onQueue={onQueue}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function RoutineCard({ routine }: { routine: Routine }) {
-  const exerciseCount = routine.exerciseIds.length;
-  const totalSeconds = routine.exerciseIds.reduce((total, id) => total + (EXERCISES.find((exercise) => exercise.id === id)?.duration ?? 0), 0);
-  return (
-    <NavLink className="routine-card" to={`/routines/${routine.id}`}>
-      <span className="routine-icon">↗</span>
-      <span className="routine-card-content"><strong>{routine.name}</strong><small>{exerciseCount} bài tập <span>·</span> {formatDuration(totalSeconds)}</small></span>
-      <span className="card-arrow">→</span>
-    </NavLink>
-  );
-}
-
-function RoutinesPage() {
-  const routines = useRoutineStore((state) => state.routines);
-  const createRoutine = useRoutineStore((state) => state.createRoutine);
-  const [routineName, setRoutineName] = useState('');
-  const handleCreateRoutine = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = routineName.trim();
-    if (!name) return;
-    createRoutine(name);
-    setRoutineName('');
-  };
-
-  return (
-    <section className="page routines-page">
-      <div className="page-heading">
-        <div><p className="eyebrow">LỊCH TẬP CỦA BẠN</p><h1>Giáo án</h1><p className="subheading">Kết hợp các bài tập thành một buổi tập của riêng bạn.</p></div>
-        <span className="routine-count">{routines.length}<small>giáo án</small></span>
-      </div>
-      <form className="create-routine-form" onSubmit={handleCreateRoutine}>
-        <label htmlFor="routine-name">Tạo giáo án mới</label>
-        <div className="create-routine-controls">
-          <input id="routine-name" value={routineName} onChange={(event) => setRoutineName(event.target.value)} placeholder="Ví dụ: Buổi tập thân trên" maxLength={60} />
-          <button className="button button-primary" type="submit" disabled={!routineName.trim()}>+ Tạo giáo án</button>
-        </div>
-      </form>
-      {routines.length === 0 ? (
-        <div className="empty-card routine-empty"><span className="empty-icon">▤</span><h2>Bắt đầu với giáo án đầu tiên</h2><p>Đặt tên cho giáo án, sau đó thêm các bài tập yêu thích.</p></div>
-      ) : <div className="routine-grid">{routines.map((routine) => <RoutineCard key={routine.id} routine={routine} />)}</div>}
-    </section>
-  );
-}
-
-function RoutineDetailPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const routine = useRoutineStore((state) => state.routines.find((item) => item.id === id));
-  const savedIds = useSavedStore((state) => state.ids);
-  const removeRoutine = useRoutineStore((state) => state.removeRoutine);
-  const addExerciseToRoutine = useRoutineStore((state) => state.addExerciseToRoutine);
-  const removeExerciseFromRoutine = useRoutineStore((state) => state.removeExerciseFromRoutine);
-  const startSession = useSessionStore((state) => state.startSession);
-  const [exerciseId, setExerciseId] = useState('');
-
-  if (!routine) {
-    return <section className="page"><div className="empty-card"><h2>Không tìm thấy giáo án</h2><NavLink className="button button-primary" to="/routines">Quay lại giáo án</NavLink></div></section>;
-  }
-
-  const exercises = routine.exerciseIds.map((exerciseId) => EXERCISES.find((exercise) => exercise.id === exerciseId)).filter((exercise): exercise is Exercise => exercise !== undefined);
-  const totalTime = exercises.reduce((total, exercise) => total + exercise.duration, 0);
-  const addExercise = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (exerciseId) {
-      addExerciseToRoutine(routine.id, exerciseId);
-      setExerciseId('');
-    }
-  };
-  const handleRemoveRoutine = () => {
-    removeRoutine(routine.id);
-    navigate('/routines');
-  };
-
-  return (
-    <section className="page routine-detail-page">
-      <NavLink className="back-link" to="/routines">← Tất cả giáo án</NavLink>
-      <div className="detail-heading">
-        <div><p className="eyebrow">GIÁO ÁN</p><h1>{routine.name}</h1><p className="subheading">{exercises.length} bài tập <span>·</span> {formatDuration(totalTime)} tổng thời gian</p></div>
-        <button className="button button-primary" type="button" disabled={exercises.length === 0} onClick={() => startSession(exercises, 0)}>▶ Bắt đầu giáo án</button>
-      </div>
-      <form className="add-exercise-form" onSubmit={addExercise}>
-        <label htmlFor="routine-exercise">Thêm bài tập từ bộ sưu tập</label>
-        <div className="create-routine-controls">
-          <select id="routine-exercise" value={exerciseId} onChange={(event) => setExerciseId(event.target.value)}>
-            <option value="">Chọn bài tập đã lưu</option>
-            {savedIds.map((savedId) => {
-              const exercise = EXERCISES.find((item) => item.id === savedId);
-              return exercise ? <option key={exercise.id} value={exercise.id}>{exercise.name} — {exercise.trainer}</option> : null;
-            })}
-          </select>
-          <button className="button button-secondary" type="submit" disabled={!exerciseId}>+ Thêm bài tập</button>
-        </div>
-        <p className="form-hint">Chưa lưu bài tập? Hãy chọn ☆ trong Kho bài tập hoặc lưu ngay bên dưới.</p>
-      </form>
-      {exercises.length === 0 ? (
-        <div className="empty-card"><span className="empty-icon">＋</span><h2>Giáo án đang trống</h2><p>Lưu bài tập từ kho rồi thêm chúng vào giáo án này.</p><NavLink className="button button-secondary" to="/">Mở kho bài tập</NavLink></div>
-      ) : (
-        <div className="routine-exercise-list">
-          {exercises.map((exercise, index) => (
-            <div className="routine-exercise" key={exercise.id}>
-              <span className="routine-index">{String(index + 1).padStart(2, '0')}</span>
-              <span className="routine-exercise-info"><strong>{exercise.name}</strong><small>{exercise.group} <span>·</span> {exercise.trainer}</small></span>
-              <span className="duration-value">{formatDuration(exercise.duration)}</span>
-              <button className="icon-button remove-button" type="button" aria-label={`Xóa ${exercise.name} khỏi giáo án`} onClick={() => removeExerciseFromRoutine(routine.id, exercise.id)}>×</button>
-            </div>
-          ))}
-        </div>
-      )}
-      <button className="delete-routine" type="button" onClick={handleRemoveRoutine}>Xóa giáo án</button>
     </section>
   );
 }
@@ -400,8 +269,9 @@ function SessionBar() {
 
 function AppLayout() {
   const savedCount = useSavedStore((state) => state.ids.length);
+  const { theme, toggleTheme } = useTheme();
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={theme}>
       <header className="site-header">
         <NavLink className="brand" to="/" aria-label="Pulse, về kho bài tập">
           <span className="brand-mark"><span /></span>
@@ -412,16 +282,21 @@ function AppLayout() {
           <NavLink to="/saved" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><span className="nav-icon">☆</span>Đã lưu{savedCount > 0 && <span className="nav-count">{savedCount}</span>}</NavLink>
           <NavLink to="/routines" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><span className="nav-icon">▤</span>Giáo án</NavLink>
         </nav>
+        <button className="theme-toggle" type="button" onClick={toggleTheme}>
+          {theme === 'light' ? '◐ Giao diện tối' : '☀ Giao diện sáng'}
+        </button>
         <span className="profile-chip"><span className="profile-avatar">P</span><span>Nguyễn Thị Hồng Phúc</span></span>
       </header>
       <main>
-        <Routes>
-          <Route path="/" element={<LibraryPage />} />
-          <Route path="/saved" element={<SavedPage />} />
-          <Route path="/routines" element={<RoutinesPage />} />
-          <Route path="/routines/:id" element={<RoutineDetailPage />} />
-          <Route path="*" element={<section className="page"><div className="empty-card"><h2>Không tìm thấy trang</h2><NavLink className="button button-primary" to="/">Về kho bài tập</NavLink></div></section>} />
-        </Routes>
+        <Suspense fallback={<p className="route-loading">Đang tải trang...</p>}>
+          <Routes>
+            <Route path="/" element={<LibraryPage />} />
+            <Route path="/saved" element={<SavedPage />} />
+            <Route path="/routines" element={<RoutinesPage />} />
+            <Route path="/routines/:id" element={<RoutineDetailPage />} />
+            <Route path="*" element={<section className="page"><div className="empty-card"><h2>Không tìm thấy trang</h2><NavLink className="button button-primary" to="/">Về kho bài tập</NavLink></div></section>} />
+          </Routes>
+        </Suspense>
       </main>
       <SessionBar />
       <footer className="site-footer"><span>2026 PULSE TRAINING</span><span>NHỊP ĐỘ CỦA BẠN, MỤC TIÊU CỦA BẠN</span></footer>
@@ -430,5 +305,11 @@ function AppLayout() {
 }
 
 export default function App() {
-  return <BrowserRouter><AppLayout /></BrowserRouter>;
+  return (
+    <ThemeProvider>
+      <RoutineProvider>
+        <BrowserRouter><AppLayout /></BrowserRouter>
+      </RoutineProvider>
+    </ThemeProvider>
+  );
 }

@@ -7,9 +7,3 @@ export interface Exercise {
   group: MuscleGroup;
   duration: number;
 }
-
-export interface Routine {
-  id: string;
-  name: string;
-  exerciseIds: string[];
-}

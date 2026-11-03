@@ -3,6 +3,21 @@
   padding-bottom: 48px;
 }
 
+.button-routine {
+  min-height: 29px;
+  padding: 0 7px;
+  color: #536c4d;
+  border-color: #dce5d8;
+  background: #f7faf5;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.button-routine:hover:not(:disabled) {
+  border-color: #c9d8c4;
+  background: #edf4ea;
+}
+
 .site-header {
   width: min(1120px, calc(100% - 64px));
   height: 82px;
@@ -125,6 +140,24 @@
   font-weight: 600;
 }
 
+.theme-toggle {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid #e2e8df;
+  border-radius: 8px;
+  color: #64715e;
+  background: #fbfcfa;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.theme-toggle:hover {
+  border-color: #bdcdb8;
+  background: #f0f5ee;
+}
+
 .profile-avatar {
   width: 28px;
   height: 28px;
@@ -202,7 +235,7 @@
   margin-top: 32px;
   padding: 16px;
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(150px, 190px) minmax(185px, 220px);
+  grid-template-columns: minmax(210px, 1fr) minmax(130px, 160px) minmax(155px, 190px) minmax(155px, 190px);
   gap: 13px;
   border: 1px solid #e8ebe6;
   border-radius: 13px;
@@ -542,6 +575,28 @@
   border: 1px solid #e8ebe6;
   border-radius: 12px;
   background: #fff;
+}
+
+.form-error {
+  margin: 8px 0 0;
+  color: #a64c43;
+  font-size: 11px;
+}
+
+.routine-delete {
+  min-height: 30px;
+  padding: 0 9px;
+  color: #87605b;
+  font-size: 10px;
+}
+
+.route-loading {
+  width: min(1120px, calc(100% - 64px));
+  min-height: 40vh;
+  margin: 0 auto;
+  padding-top: 60px;
+  color: #777e75;
+  font-size: 13px;
 }
 
 .create-routine-controls {
@@ -909,6 +964,22 @@
     display: none;
   }
 
+  .theme-toggle {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    overflow: hidden;
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .theme-toggle::before {
+    content: '◐';
+    color: var(--green-dark);
+    font-size: 16px;
+  }
+
   .main-nav {
     gap: 0;
   }
@@ -964,6 +1035,10 @@
   }
 
   .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .routine-selector {
     grid-column: 1 / -1;
   }
 
@@ -1054,6 +1129,12 @@
   .icon-button {
     width: 26px;
     height: 26px;
+  }
+
+  .button-routine {
+    min-height: 26px;
+    padding: 0 4px;
+    font-size: 7px;
   }
 
   .count-pill {
@@ -1164,4 +1245,109 @@
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+:root[data-theme='dark'] {
+  color: #e2e7df;
+  background: #151a16;
+  --green: #83a77b;
+  --green-dark: #a1c296;
+  --ink: #edf2e9;
+  --line: #323b32;
+}
+
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] .app-shell {
+  color: #dce3d8;
+  background: #151a16;
+}
+
+:root[data-theme='dark'] .site-header,
+:root[data-theme='dark'] .site-footer {
+  border-color: #323b32;
+}
+
+:root[data-theme='dark'] .nav-link,
+:root[data-theme='dark'] .profile-chip,
+:root[data-theme='dark'] .subheading,
+:root[data-theme='dark'] .results-line,
+:root[data-theme='dark'] .exercise-trainer,
+:root[data-theme='dark'] .routine-card-content small,
+:root[data-theme='dark'] .form-hint,
+:root[data-theme='dark'] .empty-card p {
+  color: #a4afa0;
+}
+
+:root[data-theme='dark'] .nav-link:hover,
+:root[data-theme='dark'] .nav-link.active,
+:root[data-theme='dark'] .filter-panel,
+:root[data-theme='dark'] .exercise-list,
+:root[data-theme='dark'] .exercise-row,
+:root[data-theme='dark'] .routine-card,
+:root[data-theme='dark'] .routine-exercise-list,
+:root[data-theme='dark'] .create-routine-form,
+:root[data-theme='dark'] .add-exercise-form,
+:root[data-theme='dark'] .workout-bar,
+:root[data-theme='dark'] .saved-list,
+:root[data-theme='dark'] .empty-card {
+  border-color: #333d33;
+  background-color: #1d241e;
+}
+
+:root[data-theme='dark'] .exercise-row:hover {
+  background: #242d24;
+}
+
+:root[data-theme='dark'] .list-heading,
+:root[data-theme='dark'] .filter-panel input,
+:root[data-theme='dark'] .filter-panel select,
+:root[data-theme='dark'] .create-routine-controls input,
+:root[data-theme='dark'] .create-routine-controls select,
+:root[data-theme='dark'] .theme-toggle,
+:root[data-theme='dark'] .button-secondary,
+:root[data-theme='dark'] .button-routine,
+:root[data-theme='dark'] .icon-button {
+  color: #dce4d8;
+  border-color: #3a4639;
+  background-color: #252e25;
+}
+
+:root[data-theme='dark'] .list-heading {
+  color: #a0ad9c;
+}
+
+:root[data-theme='dark'] .exercise-title strong,
+:root[data-theme='dark'] .routine-card-content strong,
+:root[data-theme='dark'] .routine-exercise-info strong,
+:root[data-theme='dark'] .workout-info strong,
+:root[data-theme='dark'] .timer-clock {
+  color: #e2e9de;
+}
+
+:root[data-theme='dark'] .workout-info small,
+:root[data-theme='dark'] .timer-clock small {
+  color: #a3afa0;
+}
+
+:root[data-theme='dark'] .routine-icon,
+:root[data-theme='dark'] .group-tag,
+:root[data-theme='dark'] .empty-icon,
+:root[data-theme='dark'] .count-pill {
+  color: #bbd2b3;
+  background: #2b3a2a;
+}
+
+:root[data-theme='dark'] .exercise-row,
+:root[data-theme='dark'] .routine-exercise {
+  border-bottom-color: #303a30;
+}
+
+:root[data-theme='dark'] .workout-bar {
+  box-shadow: 0 -7px 25px rgb(0 0 0 / 20%);
+}
+
+:root[data-theme='dark'] .routine-count {
+  color: #e5ece1;
+  border-color: #3a4639;
+  background: #202820;
 }
