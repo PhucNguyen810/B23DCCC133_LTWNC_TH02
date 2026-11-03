@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoutineProvider } from './RoutineContext';
 import { useRoutineDispatch, useRoutines } from './RoutineContexts';
 
@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe('RoutineProvider', () => {
-  it('persists reducer state to workout-routines', async () => {
+  it('lưu state reducer vào workout-routines', async () => {
     render(<RoutineProvider><RoutineHarness /></RoutineProvider>);
     fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
 
@@ -31,5 +31,24 @@ describe('RoutineProvider', () => {
         { id: 'r1', name: 'Ngày ngực', exerciseIds: [] },
       ]);
     });
+  });
+
+  it('chuyển dữ liệu giáo án từ khóa lưu phiên bản cũ', () => {
+    localStorage.setItem('pulse-workout-storage', JSON.stringify({
+      state: { routines: [{ id: 'r1', name: 'Ngày ngực', exerciseIds: ['e1'] }] },
+      version: 1,
+    }));
+    render(<RoutineProvider><RoutineHarness /></RoutineProvider>);
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  it('bỏ qua dữ liệu localStorage sai định dạng và báo lỗi', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    localStorage.setItem('workout-routines', '{');
+    render(<RoutineProvider><RoutineHarness /></RoutineProvider>);
+
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
   });
 });

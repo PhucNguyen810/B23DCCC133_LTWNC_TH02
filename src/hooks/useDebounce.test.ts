@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe('useDebounce', () => {
-  it('updates only after the delay has elapsed', () => {
+  it('chỉ cập nhật giá trị sau đủ 300 mili giây', () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(({ value }: { value: string }) => useDebounce(value, 300), {
       initialProps: { value: '' },
@@ -23,7 +23,7 @@ describe('useDebounce', () => {
     expect(result.current).toBe('đẩy');
   });
 
-  it('cancels the prior value when the user keeps typing', () => {
+  it('hủy bộ đếm cũ khi người dùng tiếp tục nhập', () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(({ value }: { value: string }) => useDebounce(value, 300), {
       initialProps: { value: 'đ' },

@@ -7,7 +7,7 @@ beforeEach(() => {
 });
 
 describe('useSavedStore', () => {
-  it('toggles saved ids and persists them using workout-saved', () => {
+  it('bật tắt bài đã lưu và ghi nhớ với khóa workout-saved', () => {
     useSavedStore.getState().toggle('e1');
     useSavedStore.getState().toggle('e3');
 

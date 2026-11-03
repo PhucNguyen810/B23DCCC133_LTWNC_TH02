@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { EXERCISES } from '../../data/exercises';
-import { ExerciseRow } from '../exercises/ExerciseRow';
+import { ExerciseRow } from '../library/ExerciseRow';
 import { useSavedStore } from './useSavedStore';
 import { useSessionStore } from '../session/useSessionStore';
 import type { Exercise } from '../../types';

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
 import { RoutineDispatchContext, RoutineStateContext } from './RoutineContexts';
-import { routineReducer, withLogger } from './routineReducer';
+import { routineReducer } from './routineReducer';
+import { withLogger } from './withLogger';
 import type { Routine } from './routineReducer';
 
 const STORAGE_KEY = 'workout-routines';

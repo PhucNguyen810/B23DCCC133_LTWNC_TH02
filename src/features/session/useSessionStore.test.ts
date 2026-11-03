@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 
 describe('useSessionStore', () => {
-  it('starts a new session at the selected exercise', () => {
+  it('bắt đầu buổi tập tại bài đã chọn', () => {
     useSessionStore.getState().startSession(EXERCISES.slice(0, 3), 1);
     expect(useSessionStore.getState()).toMatchObject({
       queue: EXERCISES.slice(0, 3),
@@ -22,7 +22,7 @@ describe('useSessionStore', () => {
     });
   });
 
-  it('adds exercises once and starts the first queued exercise when toggled', () => {
+  it('chỉ thêm bài một lần và chạy khi bật đồng hồ', () => {
     const { addToSession, toggleRun } = useSessionStore.getState();
     addToSession(EXERCISES[0]!);
     addToSession(EXERCISES[0]!);
@@ -36,7 +36,7 @@ describe('useSessionStore', () => {
     expect(useSessionStore.getState().isRunning).toBe(true);
   });
 
-  it('resets the current exercise after more than three seconds, otherwise goes back', () => {
+  it('đặt lại bài hiện tại sau ba giây, nếu không thì lùi bài', () => {
     useSessionStore.getState().startSession(EXERCISES.slice(0, 3), 2);
     useSessionStore.setState({ elapsed: 4 });
     useSessionStore.getState().prev();
@@ -47,7 +47,7 @@ describe('useSessionStore', () => {
     expect(useSessionStore.getState()).toMatchObject({ currentIndex: 1, elapsed: 0 });
   });
 
-  it('stops at the last exercise and automatically advances when time expires', () => {
+  it('tự sang bài sau khi hết giờ và dừng ở bài cuối', () => {
     useSessionStore.getState().startSession(EXERCISES.slice(0, 2), 0);
     useSessionStore.setState({ elapsed: 29 });
     useSessionStore.getState().tick();
@@ -58,7 +58,7 @@ describe('useSessionStore', () => {
     expect(useSessionStore.getState().isRunning).toBe(false);
   });
 
-  it('ticks once per second and advances when the current duration ends', () => {
+  it('tăng một giây và tự chuyển khi hết thời lượng', () => {
     useSessionStore.getState().startSession(EXERCISES.slice(0, 2), 0);
     useSessionStore.setState({ elapsed: 29 });
     useSessionStore.getState().tick();

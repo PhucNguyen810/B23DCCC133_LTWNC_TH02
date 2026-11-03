@@ -35,13 +35,3 @@ export function routineReducer(state: Routine[], action: RoutineAction): Routine
       );
   }
 }
-
-export function withLogger(reducer: typeof routineReducer): typeof routineReducer {
-  return (state, action) => {
-    const nextState = reducer(state, action);
-    if (import.meta.env.DEV) {
-      console.log(`[routine] ${action.type}`, { stateBefore: state, stateAfter: nextState });
-    }
-    return nextState;
-  };
-}

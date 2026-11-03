@@ -47,7 +47,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   },
   next: () => {
     const { queue, currentIndex } = get();
-    if (currentIndex < 0 || currentIndex >= queue.length - 1) {
+    if (currentIndex < 0) return;
+    if (currentIndex >= queue.length - 1) {
       set({ isRunning: false });
       return;
     }
